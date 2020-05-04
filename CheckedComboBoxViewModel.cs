@@ -12,10 +12,6 @@ namespace CheckedComboBox
 
     public class CheckedComboBoxViewModel<T> : ICheckedComboBoxViewModel, INotifyPropertyChanged
     {
-        private readonly AllItemsCheckedComboBoxItem _allItems;
-
-        private IEnumerable<CheckedComboBoxItem<T>> _items;
-
         public event PropertyChangedEventHandler PropertyChanged;
 
         private void RaisePropertyChanged(string propertyName)
@@ -28,44 +24,63 @@ namespace CheckedComboBox
 
         public CheckedComboBoxViewModel()
         {
-            _allItems = new AllItemsCheckedComboBoxItem();
-            _allItems.PropertyChanged += AllItem_PropertyChanged;
-            _items = Enumerable.Empty<CheckedComboBoxItem<T>>();
+            _comboboxItems = new List<CheckedComboBoxItem>();
         }
 
-        public CheckedComboBoxItem<T> AllItems
+        private Func<T, string> _displayMemberFunc;
+        public void SetDisplayMemberFunc(Func<T, string> displayMemberFunc)
         {
-            get { return _allItems; }
+            _displayMemberFunc = displayMemberFunc;
+            foreach (var i in _comboboxItems) i.DisplayMemberFunc = _displayMemberFunc;
+        }
+
+        private bool _isAllItemsSelected;
+        public bool IsAllItemsSelected
+        {
+            get { return _isAllItemsSelected; }
+            set
+            {
+                _isAllItemsSelected = value;
+                RaisePropertyChanged("IsAllItemsSelected");
+                IsAllItemsSelectedChange();
+            }
         }
 
         public bool HasItems
         {
-            get { return _items.Any(); }
+            get { return _comboboxItems.Any(); }
         }
 
-        public IEnumerable<CheckedComboBoxItem<T>> SelectedItems
+        public IEnumerable<T> SelectedItems
         {
-            get { return _items.Where(i => i.IsSelected); }
-        }
-
-        public IEnumerable<CheckedComboBoxItem<T>> Items
-        {
-            get { return _items; }
+            get { return _comboboxItems.Where(i => i.IsSelected).Select(x => x.InnerObject); }
             set
             {
-                foreach (var i in _items) i.PropertyChanged -= OnItemPropertyChanged;
-                if (value != null)
+                var newSelectedItemsSet = new HashSet<T>(value ?? Enumerable.Empty<T>());
+                foreach (var comboboxItem in _comboboxItems)
                 {
-                    _items = value;
-                    foreach (var i in value) i.PropertyChanged += OnItemPropertyChanged;
+                    comboboxItem.IsSelected = newSelectedItemsSet.Contains(comboboxItem.InnerObject);
                 }
-                else
-                {
-                    _items = Enumerable.Empty<CheckedComboBoxItem<T>>();
-                }
-                RaisePropertyChanged("Items");
+            }
+        }
+
+        public IEnumerable<T> ItemsSource
+        {
+            get { return _comboboxItems.Select(x => x.InnerObject); }
+            set
+            {
+                foreach (var i in _comboboxItems) i.PropertyChanged -= OnItemPropertyChanged;
+                _comboboxItems = (value ?? Enumerable.Empty<T>()).Select(i => new CheckedComboBoxItem(i, _displayMemberFunc)).ToList();
+                foreach (var i in _comboboxItems) i.PropertyChanged += OnItemPropertyChanged;
+                RaisePropertyChanged("ItemsSource");
                 RaisePropertyChanged("HasItems");
             }
+        }
+
+        private List<CheckedComboBoxItem> _comboboxItems;
+        public IEnumerable<CheckedComboBoxItem> ComboboxItems
+        {
+            get { return _comboboxItems; }
         }
 
         private bool _itemEnableSelectedChanged = true;
@@ -73,27 +88,26 @@ namespace CheckedComboBox
         {
             if (e.PropertyName != "IsSelected") return;
             if (!_itemEnableSelectedChanged) return;
-            var selectedItem = (CheckedComboBoxItem<T>)sender;
+            var selectedItem = (CheckedComboBoxItem)sender;
             _allItemsEnableSelectedChanged = false;
             if (selectedItem.IsSelected)
             {
-                _allItems.IsSelected = _items.All(i => i.IsSelected);
+                IsAllItemsSelected = _comboboxItems.All(i => i.IsSelected);
             }
             else
             {
-                _allItems.IsSelected = false;
+                IsAllItemsSelected = false;
             }
             _allItemsEnableSelectedChanged = true;
             RaisePropertyChanged("SelectedItemsText");
         }
 
         private bool _allItemsEnableSelectedChanged = true;
-        private void AllItem_PropertyChanged(object sender, PropertyChangedEventArgs e)
+        private void IsAllItemsSelectedChange()
         {
-            if (e.PropertyName != "IsSelected") return;
             if (!_allItemsEnableSelectedChanged) return;
             _itemEnableSelectedChanged = false;
-            foreach (var item in _items) item.IsSelected = _allItems.IsSelected;
+            foreach (var item in _comboboxItems) item.IsSelected = _isAllItemsSelected;
             _itemEnableSelectedChanged = true;
             RaisePropertyChanged("SelectedItemsText");
         }
@@ -102,7 +116,7 @@ namespace CheckedComboBox
         {
             get
             {
-                return _allItems.IsSelected ? "<все>" : String.Join(";", Items.Where(i => i.IsSelected).Select(i => i.Name));
+                return _isAllItemsSelected ? "<все>" : String.Join(";", _comboboxItems.Where(i => i.IsSelected).Select(i => i.Name));
             }
         }
 
@@ -112,46 +126,37 @@ namespace CheckedComboBox
             if (OnDropDownClosed != null) OnDropDownClosed(this, EventArgs.Empty);
         }
 
-        class AllItemsCheckedComboBoxItem : CheckedComboBoxItem<T>
+        public class CheckedComboBoxItem : INotifyPropertyChanged
         {
-            public AllItemsCheckedComboBoxItem() : base(default(T))
+            public T InnerObject { get; private set; }
+
+            public CheckedComboBoxItem(T innerObject, Func<T, string> displayMemberFunc)
             {
-                Name = "<выделить все>";
+                InnerObject = innerObject;
+                DisplayMemberFunc = displayMemberFunc;
+                _isSelected = false;
             }
-        }
-    }
 
-    public class CheckedComboBoxItem<T> : INotifyPropertyChanged
-    {
-        public T InnerObject { get; private set; }
+            public Func<T, string> DisplayMemberFunc { get; set; }
 
-        public CheckedComboBoxItem(T innerObject)
-        {
-            InnerObject = innerObject;
-        }
+            private bool _isSelected;
 
-        private bool _isSelected;
-        public bool IsSelected
-        {
-            get { return _isSelected; }
-            set
+            public bool IsSelected
             {
-                _isSelected = value;
-                if (PropertyChanged != null) PropertyChanged(this, new PropertyChangedEventArgs("IsSelected"));
+                get { return _isSelected; }
+                set
+                {
+                    _isSelected = value;
+                    if (PropertyChanged != null) PropertyChanged(this, new PropertyChangedEventArgs("IsSelected"));
+                }
             }
-        }
 
-        private string _name;
-        public string Name
-        {
-            get { return _name; }
-            set
+            public string Name
             {
-                _name = value;
-                if (PropertyChanged != null) PropertyChanged(this, new PropertyChangedEventArgs("Name"));
+                get { return DisplayMemberFunc != null ? DisplayMemberFunc(InnerObject) : InnerObject.ToString(); }
             }
-        }
 
-        public event PropertyChangedEventHandler PropertyChanged;
+            public event PropertyChangedEventHandler PropertyChanged;
+        }
     }
 }
