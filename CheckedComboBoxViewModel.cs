@@ -5,7 +5,7 @@ using System.Linq;
 
 namespace CheckedComboBox
 {
-    public interface ICheckedComboBoxViewModel
+    internal interface ICheckedComboBoxViewModel
     {
         void DropDownClosed();
     }
@@ -28,10 +28,14 @@ namespace CheckedComboBox
         }
 
         private Func<T, string> _displayMemberFunc;
-        public void SetDisplayMemberFunc(Func<T, string> displayMemberFunc)
+        public Func<T, string> DisplayMemberFunc
         {
-            _displayMemberFunc = displayMemberFunc;
-            foreach (var i in _comboboxItems) i.DisplayMemberFunc = _displayMemberFunc;
+            get { return _displayMemberFunc; }
+            set
+            {
+                _displayMemberFunc = value;
+                foreach (var i in _comboboxItems) i.DisplayMemberFunc = _displayMemberFunc;
+            }
         }
 
         private bool _isAllItemsSelected;
@@ -73,7 +77,9 @@ namespace CheckedComboBox
                 _comboboxItems = (value ?? Enumerable.Empty<T>()).Select(i => new CheckedComboBoxItem(i, _displayMemberFunc)).ToList();
                 foreach (var i in _comboboxItems) i.PropertyChanged += OnItemPropertyChanged;
                 RaisePropertyChanged("ItemsSource");
+                RaisePropertyChanged("ComboboxItems");
                 RaisePropertyChanged("HasItems");
+                RaisePropertyChanged("SelectedItemsText");
             }
         }
 
@@ -100,6 +106,7 @@ namespace CheckedComboBox
             }
             _allItemsEnableSelectedChanged = true;
             RaisePropertyChanged("SelectedItemsText");
+            if (SelectedItemsChange != null) SelectedItemsChange(this, EventArgs.Empty);
         }
 
         private bool _allItemsEnableSelectedChanged = true;
@@ -110,6 +117,7 @@ namespace CheckedComboBox
             foreach (var item in _comboboxItems) item.IsSelected = _isAllItemsSelected;
             _itemEnableSelectedChanged = true;
             RaisePropertyChanged("SelectedItemsText");
+            if (SelectedItemsChange != null) SelectedItemsChange(this, EventArgs.Empty);
         }
 
         public string SelectedItemsText
@@ -120,11 +128,13 @@ namespace CheckedComboBox
             }
         }
 
-        public event EventHandler OnDropDownClosed;
+        public event EventHandler SelectedItemsChangeCompleted;
         public void DropDownClosed()
         {
-            if (OnDropDownClosed != null) OnDropDownClosed(this, EventArgs.Empty);
+            if (SelectedItemsChangeCompleted != null) SelectedItemsChangeCompleted(this, EventArgs.Empty);
         }
+
+        public event EventHandler SelectedItemsChange;
 
         public class CheckedComboBoxItem : INotifyPropertyChanged
         {

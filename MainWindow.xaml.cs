@@ -59,7 +59,7 @@ namespace CheckedComboBox
 
             //vm.SetDisplayMemberFunc(i => i.Name);
 
-            //vm.OnDropDownClosed += (s, e) => MessageBox.Show("1");
+            vm.SelectedItemsChangeCompleted += (s, e) => MessageBox.Show("SelectedItemsChangeCompleted");
 
             this.checkedComboBoxView.DataContext = vm;
         }
