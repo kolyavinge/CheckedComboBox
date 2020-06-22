@@ -13,7 +13,7 @@
         </ResourceDictionary>
     </UserControl.Resources>
     <Grid>
-        <ComboBox DropDownClosed="ComboBox_DropDownClosed">
+        <ComboBox DropDownClosed="ComboBox_DropDownClosed" TextSearch.TextPath="Name" IsTextSearchEnabled="True">
             <ComboBox.Resources>
                 <Style TargetType="Popup">
                     <Setter Property="MaxWidth" Value="500"/>
