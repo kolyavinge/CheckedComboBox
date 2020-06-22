@@ -8,7 +8,7 @@
              d:DesignHeight="450" d:DesignWidth="800">
     <UserControl.Resources>
         <ResourceDictionary>
-            <CollectionViewSource x:Key="Items" Source="{Binding Items}" />
+            <CollectionViewSource x:Key="ComboboxItems" Source="{Binding ComboboxItems}" />
             <local:BoolToVisibilityConverterExt x:Key="BoolToVisibilityConverterExt" TrueValue="Visible" FalseValue="Hidden" />
         </ResourceDictionary>
     </UserControl.Resources>
@@ -22,11 +22,11 @@
             <ComboBox.ItemsSource>
                 <CompositeCollection>
                     <ComboBoxItem Visibility="{Binding HasItems, Converter={StaticResource ResourceKey=BoolToVisibilityConverterExt}}">
-                        <CheckBox IsChecked="{Binding AllItems.IsSelected, Mode=TwoWay}" VerticalContentAlignment="Center" Height="23" Margin="-5,-2">
-                            <TextBlock Text="{Binding AllItems.Name}" FontStyle="Italic" />
+                        <CheckBox IsChecked="{Binding IsAllItemsSelected, Mode=TwoWay}" VerticalContentAlignment="Center" Height="23" Margin="-5,-2">
+                            <TextBlock Text="&lt;выделить все&gt;" FontStyle="Italic" />
                         </CheckBox>
                     </ComboBoxItem>
-                    <CollectionContainer Collection="{Binding Source={StaticResource Items}}" />
+                    <CollectionContainer Collection="{Binding Source={StaticResource ComboboxItems}}" />
                 </CompositeCollection>
             </ComboBox.ItemsSource>
             <ComboBox.ItemTemplate>
